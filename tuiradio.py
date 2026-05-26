@@ -550,6 +550,146 @@ class TuiRadio(App):
             self._play(self._stations[idx])
 
 
+# ── doctor mode ─────────────────────────────────────────────────────────────
+
+def _doctor() -> None:
+    """Run startup diagnostics and exit.  Invoked with --doctor."""
+    import ssl
+    import sys
+    import shutil
+    import importlib.metadata as meta
+
+    OK   = "\033[32m✔\033[0m"
+    FAIL = "\033[31m✘\033[0m"
+    WARN = "\033[33m!\033[0m"
+    DIM  = "\033[2m"
+    RST  = "\033[0m"
+
+    failed: set[str] = set()
+
+    def check(label: str, fn, *hints: str) -> bool:
+        try:
+            print(f"  {OK}  {label}: {fn()}")
+            return True
+        except Exception as exc:
+            print(f"  {FAIL}  {label}: {exc}")
+            for h in hints:
+                print(f"       {WARN}  {h}")
+            failed.add(label)
+            return False
+
+    print("\ntuiradio doctor\n")
+
+    # ── environment ──────────────────────────────────────────────────────────
+    print("environment:")
+    check("python", lambda: sys.version.split()[0])
+    check("venv",   lambda: sys.prefix)
+    for pkg in ("httpx", "textual", "certifi"):
+        check(pkg, lambda p=pkg: meta.version(p),
+              f"reinstall:  pip install --upgrade {pkg}")
+
+    def _mpv():
+        path = shutil.which("mpv")
+        if not path:
+            raise FileNotFoundError("not found")
+        return path
+    check("mpv", _mpv,
+          "apt:    sudo apt install mpv",
+          "pacman: sudo pacman -S mpv",
+          "brew:   brew install mpv")
+
+    # ── env vars ─────────────────────────────────────────────────────────────
+    print("\nenv vars:")
+    _ENV = [
+        # (name, who-uses-it)
+        ("SSL_CERT_FILE",   "Python ssl — override CA bundle path"),
+        ("SSL_CERT_DIR",    "Python ssl — directory of CA certs"),
+        ("HTTPS_PROXY",     "httpx — HTTPS proxy"),
+        ("HTTP_PROXY",      "httpx — HTTP proxy"),
+        ("ALL_PROXY",       "httpx — fallback proxy for all schemes"),
+        ("NO_PROXY",        "httpx — comma-separated proxy bypass list"),
+        ("HTTPX_LOG_LEVEL", "httpx — trace|debug|info|warning|error"),
+    ]
+    for var, desc in _ENV:
+        val = os.environ.get(var) or os.environ.get(var.lower())
+        if val:
+            print(f"  {OK}  {var}={val!r}  {DIM}# {desc}{RST}")
+        else:
+            print(f"  {DIM}  -  {var:<16}  # {desc}{RST}")
+
+    # ── TLS / CA bundle ──────────────────────────────────────────────────────
+    print("\ntls:")
+
+    def _ca_bundle():
+        import certifi
+        return certifi.where()
+    check("ca bundle",   _ca_bundle,
+          "pip install --upgrade certifi")
+    check("ssl context", lambda: ssl.create_default_context().check_hostname and "ok")
+
+    # ── connectivity ─────────────────────────────────────────────────────────
+    print("\nconnectivity:")
+    host = "de1.api.radio-browser.info"
+
+    def _tcp():
+        s = socket.create_connection((host, 443), timeout=5)
+        s.close()
+        return f"{host}:443 reachable"
+    check("tcp", _tcp,
+          "host unreachable — check network / firewall",
+          f"probe manually:  nc -zv {host} 443")
+
+    def _tls_verify():
+        ctx = ssl.create_default_context()
+        with ctx.wrap_socket(
+            socket.create_connection((host, 443), timeout=5),
+            server_hostname=host,
+        ) as tls:
+            cert = tls.getpeercert()
+            return cert.get("subject", ((('commonName', host),),))[0][0][1]
+
+    tls_ok = check("tls (verified)", _tls_verify)
+
+    if not tls_ok:
+        # probe without verification to distinguish cert vs. network failure
+        def _tls_noverify():
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode    = ssl.CERT_NONE
+            with ctx.wrap_socket(
+                socket.create_connection((host, 443), timeout=5),
+                server_hostname=host,
+            ) as tls:
+                raw = tls.getpeercert(binary_form=True)
+                return f"connected — {len(ssl.DER_cert_to_PEM_cert(raw))} byte cert"
+
+        noverify_ok = check("tls (unverified)", _tls_noverify)
+        print()
+        if noverify_ok:
+            print(f"  {WARN}  host reachable but cert verification failed — likely causes:")
+            print( "          1. corporate / MITM proxy with its own CA")
+            print( "             → export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt")
+            print( "             → or point to your corporate bundle")
+            print( "          2. stale certifi CA bundle")
+            print( "             → pip install --upgrade certifi")
+        else:
+            print(f"  {WARN}  no TLS connection at all — firewall blocking 443?")
+            print( "          → check HTTPS_PROXY / NO_PROXY if behind a proxy")
+        print()
+
+    def _httpx_get():
+        r = httpx.get(f"https://{host}/json/stats", headers=_HEADERS, timeout=8)
+        r.raise_for_status()
+        return f"HTTP {r.status_code}"
+    check("httpx GET", _httpx_get)
+
+    print()
+    sys.exit(0)
+
+
 if __name__ == "__main__":
+    import sys as _sys
+    if "--doctor" in _sys.argv:
+        _doctor()
     TuiRadio().run()
 

@@ -3,6 +3,41 @@
 # Copyright (C) 2026 surrogard
 """tuiradio – A TUI internet radio player backed by the Radio Browser API."""
 
+# ── self-bootstrap: only python3 + venv required to launch ──────────────────
+def _bootstrap() -> None:
+    """Ensure we run inside our project venv; create and populate it if needed."""
+    import os, sys
+
+    here       = os.path.dirname(os.path.abspath(__file__))
+    venv_dir   = os.path.join(here, ".venv")
+    venv_py    = os.path.join(venv_dir, "bin", "python")
+    venv_pip   = os.path.join(venv_dir, "bin", "pip")
+    req_file   = os.path.join(here, "requirements.txt")
+
+    # Already inside our venv → nothing to do
+    if os.path.abspath(sys.prefix) == os.path.abspath(venv_dir):
+        return
+
+    import subprocess
+
+    if not os.path.isfile(venv_pip):
+        print("tuiradio: creating virtual environment …", flush=True)
+        import venv as _venv
+        _venv.create(venv_dir, with_pip=False)
+        subprocess.run(
+            [venv_py, "-m", "ensurepip", "--upgrade"],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+
+    # Install / sync deps — fast no-op when already up-to-date
+    subprocess.run([venv_pip, "install", "-q", "-r", req_file], check=True)
+
+    # Replace this process image with the venv Python
+    os.execv(venv_py, [venv_py] + sys.argv)
+
+_bootstrap()
+# ────────────────────────────────────────────────────────────────────────────
+
 import json
 import os
 import pathlib

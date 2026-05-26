@@ -2,11 +2,11 @@
 
 A terminal UI internet radio player powered by the [Radio Browser](https://www.radio-browser.info/) community database.
 
-![Python 3](https://img.shields.io/badge/python-3.8+-blue) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+![Python 3](https://img.shields.io/badge/python-3.10+-blue) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - [mpv](https://mpv.io/) (the actual audio player)
 
 ## Installation

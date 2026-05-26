@@ -1,5 +1,7 @@
 # tuiradio
 
+![tuiradio](assets/tui-radio.svg)
+
 A terminal UI internet radio player powered by the [Radio Browser](https://www.radio-browser.info/) community database.
 
 ![Python 3](https://img.shields.io/badge/python-3.10+-blue) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)

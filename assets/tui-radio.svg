@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 520" width="920" height="520">
+<defs>
+
+  <!-- phosphor text bloom -->
+  <filter id="bloom" x="-40%" y="-40%" width="180%" height="180%">
+    <feGaussianBlur stdDeviation="2" result="b"/>
+    <feComposite in="SourceGraphic" in2="b" operator="over"/>
+  </filter>
+  <!-- subtle text glow -->
+  <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+    <feGaussianBlur stdDeviation="1" result="b"/>
+    <feComposite in="SourceGraphic" in2="b" operator="over"/>
+  </filter>
+  <!-- large soft glow for tube halos -->
+  <filter id="halo" x="-100%" y="-100%" width="300%" height="300%">
+    <feGaussianBlur stdDeviation="28"/>
+  </filter>
+  <filter id="halomed" x="-80%" y="-80%" width="260%" height="260%">
+    <feGaussianBlur stdDeviation="14"/>
+  </filter>
+  <!-- edge vignette -->
+  <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
+    <stop offset="0%"   stop-color="#000000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000000" stop-opacity="0.72"/>
+  </radialGradient>
+
+  <!-- chassis surface -->
+  <linearGradient id="chassis" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%"   stop-color="#120e08"/>
+    <stop offset="50%"  stop-color="#0d0a06"/>
+    <stop offset="100%" stop-color="#080604"/>
+  </linearGradient>
+
+  <!-- tube glass (very transparent amber tint) -->
+  <linearGradient id="tubeGlass" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%"   stop-color="#d0a040" stop-opacity="0.18"/>
+    <stop offset="18%"  stop-color="#ffffff" stop-opacity="0.10"/>
+    <stop offset="50%"  stop-color="#ffffff" stop-opacity="0.02"/>
+    <stop offset="82%"  stop-color="#ffffff" stop-opacity="0.07"/>
+    <stop offset="100%" stop-color="#d0a040" stop-opacity="0.14"/>
+  </linearGradient>
+
+  <!-- scanlines -->
+  <pattern id="scanlines" x="0" y="0" width="2" height="4" patternUnits="userSpaceOnUse">
+    <rect width="2" height="3" fill="transparent"/>
+    <rect y="3" width="2" height="1" fill="#000000" fill-opacity="0.18"/>
+  </pattern>
+
+  <!-- subtle bakelite grain (horizontal) -->
+  <pattern id="grain" x="0" y="0" width="4" height="8" patternUnits="userSpaceOnUse">
+    <rect width="4" height="8" fill="transparent"/>
+    <line x1="0" y1="2" x2="4" y2="2" stroke="#ffffff" stroke-opacity="0.012"/>
+    <line x1="0" y1="6" x2="4" y2="6" stroke="#000000" stroke-opacity="0.08"/>
+  </pattern>
+
+  <!-- ECC83 / 12AX7 dual triode symbol — 88 × 180 viewBox -->
+  <symbol id="ecc83" viewBox="0 0 88 180" overflow="visible">
+
+    <!-- glass envelope (very transparent) -->
+    <path d="M 44,5 C 69,5 77,22 77,52 L 77,102
+             C 77,130 63,138 44,138
+             C 25,138 11,130 11,102 L 11,52
+             C 11,22 19,5 44,5 Z"
+          fill="url(#tubeGlass)" stroke="#c8a850" stroke-width="1.3" stroke-opacity="0.7"/>
+
+    <!-- left-edge glass highlight -->
+    <path d="M 18,32 Q 14,56 14,90 Q 14,114 20,128"
+          stroke="#ffe890" stroke-opacity="0.15" stroke-width="5"
+          fill="none" stroke-linecap="round"/>
+
+    <!-- getter (silvered mirror at top) -->
+    <ellipse cx="44" cy="20" rx="13" ry="3.5"
+             fill="#706850" fill-opacity="0.9" stroke="#a09060" stroke-width="0.8"/>
+    <ellipse cx="44" cy="19" rx="13" ry="3"
+             fill="none" stroke="#d4c880" stroke-width="0.5" stroke-dasharray="2,1" stroke-opacity="0.7"/>
+
+    <!-- mica spacer – top -->
+    <ellipse cx="44" cy="42" rx="25" ry="3.5"
+             fill="none" stroke="#806030" stroke-width="0.9" stroke-dasharray="3,2" stroke-opacity="0.8"/>
+
+    <!-- anode plates -->
+    <rect x="15" y="44" width="5.5" height="74" fill="#b07830" fill-opacity="0.85" stroke="#d09840" stroke-width="0.9"/>
+    <rect x="67.5" y="44" width="5.5" height="74" fill="#b07830" fill-opacity="0.85" stroke="#d09840" stroke-width="0.9"/>
+    <!-- anode top/bottom bars -->
+    <line x1="15" y1="44" x2="20.5" y2="44" stroke="#d09840" stroke-width="1.4"/>
+    <line x1="67.5" y1="44" x2="73" y2="44" stroke="#d09840" stroke-width="1.4"/>
+    <line x1="15" y1="118" x2="20.5" y2="118" stroke="#d09840" stroke-width="1.4"/>
+    <line x1="67.5" y1="118" x2="73" y2="118" stroke="#d09840" stroke-width="1.4"/>
+
+    <!-- grid (helix — dashed verticals with horizontal cross-wires) -->
+    <line x1="29" y1="46" x2="29" y2="116"
+          stroke="#70b840" stroke-width="1" stroke-dasharray="2,2.4" stroke-opacity="0.9"/>
+    <line x1="59" y1="46" x2="59" y2="116"
+          stroke="#70b840" stroke-width="1" stroke-dasharray="2,2.4" stroke-dashoffset="2.2" stroke-opacity="0.9"/>
+    <line x1="29" y1="54"  x2="59" y2="54"  stroke="#70b840" stroke-width="0.6" stroke-opacity="0.4"/>
+    <line x1="29" y1="66"  x2="59" y2="66"  stroke="#70b840" stroke-width="0.6" stroke-opacity="0.4"/>
+    <line x1="29" y1="78"  x2="59" y2="78"  stroke="#70b840" stroke-width="0.6" stroke-opacity="0.4"/>
+    <line x1="29" y1="90"  x2="59" y2="90"  stroke="#70b840" stroke-width="0.6" stroke-opacity="0.4"/>
+    <line x1="29" y1="102" x2="59" y2="102" stroke="#70b840" stroke-width="0.6" stroke-opacity="0.4"/>
+    <line x1="29" y1="114" x2="59" y2="114" stroke="#70b840" stroke-width="0.6" stroke-opacity="0.4"/>
+
+    <!-- cathode cylinder -->
+    <rect x="35" y="48" width="18" height="66" rx="1"
+          fill="#0e0600" fill-opacity="0.9" stroke="#e0a030" stroke-width="1.3"/>
+
+    <!-- heater filament (glowing zigzag) -->
+    <path d="M 43,55 Q 47,60 43,66 Q 39,72 43,78
+                      Q 47,84 43,90 Q 39,96 43,102"
+          stroke="#ff8800" stroke-width="1.8" fill="none"
+          stroke-linecap="round" filter="url(#halomed)" stroke-opacity="0.9"/>
+    <path d="M 43,55 Q 47,60 43,66 Q 39,72 43,78
+                      Q 47,84 43,90 Q 39,96 43,102"
+          stroke="#ffe090" stroke-width="0.6" fill="none"
+          stroke-linecap="round" stroke-opacity="0.8"/>
+
+    <!-- mica spacer – bottom -->
+    <ellipse cx="44" cy="118" rx="25" ry="3.5"
+             fill="none" stroke="#806030" stroke-width="0.9" stroke-dasharray="3,2" stroke-opacity="0.8"/>
+
+    <!-- glass stem (pinch) -->
+    <path d="M 28,136 L 26,144 L 62,144 L 60,136"
+          fill="#140e04" fill-opacity="0.8" stroke="#c8a050" stroke-width="1" stroke-opacity="0.6"/>
+
+    <!-- base wafer -->
+    <rect x="24" y="144" width="40" height="10" rx="2"
+          fill="#1c1408" stroke="#7a5820" stroke-width="1.1"/>
+
+    <!-- 9 noval pins -->
+    <line x1="29" y1="154" x2="28" y2="173" stroke="#a08030" stroke-width="1.4"/>
+    <line x1="33" y1="154" x2="33" y2="174" stroke="#a08030" stroke-width="1.4"/>
+    <line x1="37" y1="154" x2="37" y2="175" stroke="#a08030" stroke-width="1.4"/>
+    <line x1="44" y1="154" x2="44" y2="176" stroke="#a08030" stroke-width="1.4"/>
+    <line x1="51" y1="154" x2="51" y2="175" stroke="#a08030" stroke-width="1.4"/>
+    <line x1="55" y1="154" x2="55" y2="174" stroke="#a08030" stroke-width="1.4"/>
+    <line x1="59" y1="154" x2="60" y2="173" stroke="#a08030" stroke-width="1.4"/>
+  </symbol>
+
+</defs>
+
+<!-- ══════════════════════════════════════════
+     LAYER 1 — chassis surface
+     ══════════════════════════════════════════ -->
+<rect width="920" height="520" rx="14" fill="url(#chassis)"/>
+<rect width="920" height="520" rx="14" fill="url(#grain)"/>
+
+<!-- ══════════════════════════════════════════
+     LAYER 2 — tube filament halos (behind tubes)
+     ══════════════════════════════════════════ -->
+<!-- V1 halo — slightly brighter, the "signal" tube -->
+<ellipse cx="182" cy="230" rx="90" ry="120"
+         fill="#ff5500" fill-opacity="0.38" filter="url(#halo)"/>
+<!-- V2 halo -->
+<ellipse cx="460" cy="230" rx="80" ry="110"
+         fill="#ff4400" fill-opacity="0.28" filter="url(#halo)"/>
+<!-- V3 halo -->
+<ellipse cx="738" cy="230" rx="80" ry="110"
+         fill="#ff4a00" fill-opacity="0.30" filter="url(#halo)"/>
+
+<!-- cathode spot glows (tighter, brighter inner core) -->
+<ellipse cx="182" cy="220" rx="30" ry="42"
+         fill="#ff8800" fill-opacity="0.35" filter="url(#halomed)"/>
+<ellipse cx="460" cy="220" rx="28" ry="40"
+         fill="#ff7700" fill-opacity="0.28" filter="url(#halomed)"/>
+<ellipse cx="738" cy="220" rx="28" ry="40"
+         fill="#ff7700" fill-opacity="0.28" filter="url(#halomed)"/>
+
+<!-- ══════════════════════════════════════════
+     LAYER 3 — tube illustrations
+     ══════════════════════════════════════════ -->
+<!-- V1  (x-center 182) -->
+<use href="#ecc83" x="138" y="76" width="132" height="270"/>
+<!-- V2 -->
+<use href="#ecc83" x="416" y="76" width="132" height="270"/>
+<!-- V3 -->
+<use href="#ecc83" x="694" y="76" width="132" height="270"/>
+
+<!-- pin/socket glow rings on chassis surface -->
+<ellipse cx="182" cy="388" rx="36" ry="6"
+         fill="#ff5500" fill-opacity="0.12" filter="url(#halomed)"/>
+<ellipse cx="460" cy="388" rx="36" ry="6"
+         fill="#ff5500" fill-opacity="0.10" filter="url(#halomed)"/>
+<ellipse cx="738" cy="388" rx="36" ry="6"
+         fill="#ff5500" fill-opacity="0.10" filter="url(#halomed)"/>
+
+<!-- tube labels (etched into chassis, between tubes and UI) -->
+<text x="182" y="72" text-anchor="middle"
+      font-family="'Courier New',Courier,monospace" font-size="9"
+      fill="#805030" letter-spacing="1.5" opacity="0.7">ECC83</text>
+<text x="460" y="72" text-anchor="middle"
+      font-family="'Courier New',Courier,monospace" font-size="9"
+      fill="#805030" letter-spacing="1.5" opacity="0.7">ECC83</text>
+<text x="738" y="72" text-anchor="middle"
+      font-family="'Courier New',Courier,monospace" font-size="9"
+      fill="#805030" letter-spacing="1.5" opacity="0.7">ECC83</text>
+
+<!-- ══════════════════════════════════════════
+     LAYER 4 — dark film (smoked front glass)
+     ══════════════════════════════════════════ -->
+<rect width="920" height="520" rx="14"
+      fill="#0a0600" fill-opacity="0.52"/>
+
+<!-- ══════════════════════════════════════════
+     LAYER 5 — TUI front panel
+     ══════════════════════════════════════════ -->
+<g font-family="'Courier New',Courier,monospace" filter="url(#glow)">
+
+  <!-- ── header ── -->
+  <rect x="0" y="0" width="920" height="34" rx="14"
+        fill="#100a00" fill-opacity="0.82"/>
+  <rect x="0" y="24" width="920" height="10" fill="#100a00" fill-opacity="0.82"/>
+  <text x="460" y="22" text-anchor="middle" font-size="15" font-weight="bold"
+        letter-spacing="4" fill="#ffb000" filter="url(#bloom)">T U I R A D I O</text>
+  <text x="904" y="22" text-anchor="end" font-size="11" fill="#664400">16:42:07</text>
+
+  <!-- ── search row ── -->
+  <rect x="0" y="34" width="920" height="30" fill="#0c0800" fill-opacity="0.78"/>
+  <text x="10" y="54" font-size="14" fill="#ffb000" filter="url(#bloom)">⠹</text>
+  <rect x="26" y="37" width="882" height="22" rx="2"
+        fill="#1a0e00" fill-opacity="0.60" stroke="#442200" stroke-width="0.8"/>
+  <text x="34" y="53" font-size="11" fill="#664400">Search: name  or  tag:rock  country:DE  codec:mp3  NOT tag:pop  (Ctrl+L to focus)</text>
+
+  <!-- ── divider ── -->
+  <line x1="0" y1="64" x2="920" y2="64" stroke="#442200" stroke-width="0.8" stroke-opacity="0.7"/>
+
+  <!-- ── table column headers ── -->
+  <rect x="0" y="64" width="920" height="24" fill="#0a0600" fill-opacity="0.72"/>
+  <text x="14"  y="80" font-size="11" font-weight="bold" fill="#cc6600">NAME</text>
+  <text x="520" y="80" font-size="11" font-weight="bold" fill="#cc6600">CTRY</text>
+  <text x="590" y="80" font-size="11" font-weight="bold" fill="#cc6600">TAGS</text>
+  <text x="748" y="80" font-size="11" font-weight="bold" fill="#cc6600">KBPS</text>
+  <text x="820" y="80" font-size="11" font-weight="bold" fill="#cc6600">COD</text>
+  <line x1="0" y1="88" x2="920" y2="88" stroke="#442200" stroke-width="0.8" stroke-opacity="0.7"/>
+
+  <!-- row 1 — selected / playing -->
+  <rect x="0" y="88" width="920" height="32" fill="#2a1200" fill-opacity="0.70"/>
+  <text x="14"  y="108" font-size="13" fill="#ffd040" filter="url(#bloom)">▶  Radio Paradise</text>
+  <text x="520" y="108" font-size="13" fill="#ffd040">US</text>
+  <text x="590" y="108" font-size="13" fill="#ffd040">classic rock</text>
+  <text x="748" y="108" font-size="13" fill="#ffd040">320</text>
+  <text x="820" y="108" font-size="13" fill="#ffd040">AAC</text>
+
+  <!-- row 2 -->
+  <rect x="0" y="120" width="920" height="32" fill="#000000" fill-opacity="0.22"/>
+  <text x="14"  y="140" font-size="12" fill="#cc7700">   KEXP 90.3</text>
+  <text x="520" y="140" font-size="12" fill="#cc7700">US</text>
+  <text x="590" y="140" font-size="12" fill="#cc7700">indie alt</text>
+  <text x="748" y="140" font-size="12" fill="#cc7700">128</text>
+  <text x="820" y="140" font-size="12" fill="#cc7700">MP3</text>
+
+  <!-- row 3 -->
+  <rect x="0" y="152" width="920" height="32" fill="#100800" fill-opacity="0.28"/>
+  <text x="14"  y="172" font-size="12" fill="#cc7700">   BBC Radio 6 Music</text>
+  <text x="520" y="172" font-size="12" fill="#cc7700">GB</text>
+  <text x="590" y="172" font-size="12" fill="#cc7700">indie alt</text>
+  <text x="748" y="172" font-size="12" fill="#cc7700">128</text>
+  <text x="820" y="172" font-size="12" fill="#cc7700">AAC</text>
+
+  <!-- row 4 -->
+  <rect x="0" y="184" width="920" height="32" fill="#000000" fill-opacity="0.20"/>
+  <text x="14"  y="204" font-size="12" fill="#cc7700">   SomaFM: Groove Salad</text>
+  <text x="520" y="204" font-size="12" fill="#cc7700">US</text>
+  <text x="590" y="204" font-size="12" fill="#cc7700">ambient</text>
+  <text x="748" y="204" font-size="12" fill="#cc7700"> 64</text>
+  <text x="820" y="204" font-size="12" fill="#cc7700">AAC</text>
+
+  <!-- row 5 -->
+  <rect x="0" y="216" width="920" height="32" fill="#100800" fill-opacity="0.26"/>
+  <text x="14"  y="236" font-size="12" fill="#cc7700">   Jazz FM London</text>
+  <text x="520" y="236" font-size="12" fill="#cc7700">GB</text>
+  <text x="590" y="236" font-size="12" fill="#cc7700">jazz</text>
+  <text x="748" y="236" font-size="12" fill="#cc7700">128</text>
+  <text x="820" y="236" font-size="12" fill="#cc7700">MP3</text>
+
+  <!-- row 6 -->
+  <rect x="0" y="248" width="920" height="32" fill="#000000" fill-opacity="0.20"/>
+  <text x="14"  y="268" font-size="12" fill="#cc7700">   Radio Swiss Jazz</text>
+  <text x="520" y="268" font-size="12" fill="#cc7700">CH</text>
+  <text x="590" y="268" font-size="12" fill="#cc7700">jazz</text>
+  <text x="748" y="268" font-size="12" fill="#cc7700">128</text>
+  <text x="820" y="268" font-size="12" fill="#cc7700">MP3</text>
+
+  <!-- row 7 -->
+  <rect x="0" y="280" width="920" height="32" fill="#100800" fill-opacity="0.25"/>
+  <text x="14"  y="300" font-size="12" fill="#cc7700">   NTS Radio 1</text>
+  <text x="520" y="300" font-size="12" fill="#cc7700">GB</text>
+  <text x="590" y="300" font-size="12" fill="#cc7700">various</text>
+  <text x="748" y="300" font-size="12" fill="#cc7700">128</text>
+  <text x="820" y="300" font-size="12" fill="#cc7700">MP3</text>
+
+  <!-- row 8 -->
+  <rect x="0" y="312" width="920" height="32" fill="#000000" fill-opacity="0.18"/>
+  <text x="14"  y="332" font-size="12" fill="#cc7700">   Deutschlandfunk Kultur</text>
+  <text x="520" y="332" font-size="12" fill="#cc7700">DE</text>
+  <text x="590" y="332" font-size="12" fill="#cc7700">kultur</text>
+  <text x="748" y="332" font-size="12" fill="#cc7700">128</text>
+  <text x="820" y="332" font-size="12" fill="#cc7700">MP3</text>
+
+  <!-- row 9 -->
+  <rect x="0" y="344" width="920" height="32" fill="#100800" fill-opacity="0.24"/>
+  <text x="14"  y="364" font-size="12" fill="#cc7700">   Radio Paradise — Mellow</text>
+  <text x="520" y="364" font-size="12" fill="#cc7700">US</text>
+  <text x="590" y="364" font-size="12" fill="#cc7700">mellow</text>
+  <text x="748" y="364" font-size="12" fill="#cc7700">128</text>
+  <text x="820" y="364" font-size="12" fill="#cc7700">AAC</text>
+
+  <!-- ── divider ── -->
+  <line x1="0" y1="376" x2="920" y2="376" stroke="#442200" stroke-width="0.8" stroke-opacity="0.7"/>
+
+  <!-- ── status bar ── -->
+  <rect x="0" y="376" width="920" height="32" fill="#120a00" fill-opacity="0.82"/>
+  <text x="14" y="397" font-size="13" fill="#ffb000" filter="url(#bloom)">♪  Radio Paradise  ·  Massive Attack — Teardrop</text>
+
+  <!-- ── divider ── -->
+  <line x1="0" y1="408" x2="920" y2="408" stroke="#331800" stroke-width="0.8" stroke-opacity="0.7"/>
+
+  <!-- ── footer ── -->
+  <rect x="0" y="408" width="920" height="38" fill="#0c0800" fill-opacity="0.86"/>
+  <!-- key chips -->
+  <rect x="10"  y="415" width="24" height="16" rx="2" fill="#2a1400" stroke="#553300" stroke-width="0.8"/>
+  <text x="22"  y="427" text-anchor="middle" font-size="10" fill="#ffb000">^L</text>
+  <text x="38"  y="427" font-size="10" fill="#886600">Search</text>
+
+  <rect x="110" y="415" width="14" height="16" rx="2" fill="#2a1400" stroke="#553300" stroke-width="0.8"/>
+  <text x="117" y="427" text-anchor="middle" font-size="10" fill="#ffb000">r</text>
+  <text x="128" y="427" font-size="10" fill="#886600">Reload</text>
+
+  <rect x="200" y="415" width="14" height="16" rx="2" fill="#2a1400" stroke="#553300" stroke-width="0.8"/>
+  <text x="207" y="427" text-anchor="middle" font-size="10" fill="#ffb000">s</text>
+  <text x="218" y="427" font-size="10" fill="#886600">Stop</text>
+
+  <rect x="284" y="415" width="14" height="16" rx="2" fill="#2a1400" stroke="#553300" stroke-width="0.8"/>
+  <text x="291" y="427" text-anchor="middle" font-size="10" fill="#ffb000">+</text>
+  <text x="302" y="427" font-size="10" fill="#886600">Vol+</text>
+
+  <rect x="358" y="415" width="14" height="16" rx="2" fill="#2a1400" stroke="#553300" stroke-width="0.8"/>
+  <text x="365" y="427" text-anchor="middle" font-size="10" fill="#ffb000">−</text>
+  <text x="376" y="427" font-size="10" fill="#886600">Vol−</text>
+
+  <rect x="432" y="415" width="14" height="16" rx="2" fill="#2a1400" stroke="#553300" stroke-width="0.8"/>
+  <text x="439" y="427" text-anchor="middle" font-size="10" fill="#ffb000">q</text>
+  <text x="450" y="427" font-size="10" fill="#886600">Quit</text>
+
+</g>
+
+<!-- scanlines across full face -->
+<rect width="920" height="520" fill="url(#scanlines)" rx="14"/>
+
+<!-- ══════════════════════════════════════════
+     LAYER 6 — outer frame & vignette
+     ══════════════════════════════════════════ -->
+<!-- vignette (edges darken, tubes glow at centre) -->
+<rect width="920" height="520" fill="url(#vignette)" rx="14"/>
+
+<!-- outer bezel ring -->
+<rect x="1" y="1" width="918" height="518" rx="13"
+      fill="none" stroke="#3a2810" stroke-width="2"/>
+<rect x="3" y="3" width="914" height="514" rx="12"
+      fill="none" stroke="#1a1008" stroke-width="1"/>
+
+</svg>

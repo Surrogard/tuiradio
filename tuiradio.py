@@ -77,7 +77,7 @@ def _parse_query(query: str) -> _Parsed:
                     pass
         elif canon == "countrycode":
             if is_not:
-                exclude_fields.append(("countrycode", value.upper()))
+                exclude_fields.append(("countrycode", value.lower()))
             else:
                 api_params["countrycode"] = value.upper()
         else:  # codec, language
@@ -152,6 +152,7 @@ class TuiRadio(App):
         self._ipc_path: str = f"/tmp/tuiradio-{os.getpid()}.sock"
         self._watching: bool = False
         self._song_title: str = ""
+        self._buffer_secs: Optional[float] = None
         self._last_station_uuid: str = ""
         self._last_search: str = ""
         self._load_config()
@@ -301,11 +302,28 @@ class TuiRadio(App):
     def _set_status(self, msg: str) -> None:
         bar = self.query_one("#status", Static)
         if self._current:
-            bar.update(f"▶  {self._current['name']}   │   vol: {self._volume}%   │   {msg}")
+            buf = self._render_buffer()
+            buf_part = f"   │   {buf}" if buf else ""
+            bar.update(f"▶  {self._current['name']}   │   vol: {self._volume}%   │   {msg}{buf_part}")
             bar.add_class("playing")
         else:
             bar.update(msg)
             bar.remove_class("playing")
+
+    def _render_buffer(self) -> str:
+        if self._buffer_secs is None:
+            return ""
+        secs = self._buffer_secs
+        fill = round(min(secs, 10))
+        bar = "█" * fill + "░" * (10 - fill)
+        label = f"{secs:.1f}s"
+        if secs >= 2.0:
+            color = "green"
+        elif secs >= 1.0:
+            color = "yellow"
+        else:
+            color = "red"
+        return f"buf [{color}]{bar} {label}[/{color}]"
 
     # ── playback ─────────────────────────────────────────────────────────
 
@@ -329,6 +347,7 @@ class TuiRadio(App):
         self._current = station
         self._last_station_uuid = station.get("stationuuid", "")
         self._song_title = ""
+        self._buffer_secs = None
         self._notify_click(self._last_station_uuid)
         try:
             self._player = subprocess.Popen(
@@ -336,6 +355,7 @@ class TuiRadio(App):
                     "mpv", "--no-video", "--no-terminal",
                     f"--volume={self._volume}",
                     f"--input-ipc-server={self._ipc_path}",
+                    "--",
                     url,
                 ],
                 stdout=subprocess.DEVNULL,
@@ -370,6 +390,7 @@ class TuiRadio(App):
             time.sleep(0.1)
         else:
             return
+        my_player = self._player  # snapshot — exit if station changes under us
         try:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
                 s.settimeout(2)
@@ -378,8 +399,12 @@ class TuiRadio(App):
                     json.dumps({"command": ["observe_property", 1, "media-title"]}).encode()
                     + b"\n"
                 )
+                s.sendall(
+                    json.dumps({"command": ["observe_property", 2, "demuxer-cache-duration"]}).encode()
+                    + b"\n"
+                )
                 buf = b""
-                while self._watching:
+                while self._watching and self._player is my_player:
                     try:
                         s.settimeout(1)
                         chunk = s.recv(4096)
@@ -402,15 +427,29 @@ class TuiRadio(App):
                         ):
                             title = msg.get("data") or ""
                             self.call_from_thread(self._update_song_title, title)
+                        elif (
+                            msg.get("event") == "property-change"
+                            and msg.get("name") == "demuxer-cache-duration"
+                        ):
+                            data = msg.get("data")
+                            if data is not None:
+                                try:
+                                    self.call_from_thread(self._update_buffer, float(data))
+                                except (TypeError, ValueError):
+                                    pass
         except Exception:
             pass
 
+    def _current_status_msg(self) -> str:
+        return f"♪  {self._song_title}" if self._song_title else "Playing…"
+
     def _update_song_title(self, title: str) -> None:
         self._song_title = title
-        if title:
-            self._set_status(f"♪  {title}")
-        else:
-            self._set_status("Playing…")
+        self._set_status(self._current_status_msg())
+
+    def _update_buffer(self, seconds: float) -> None:
+        self._buffer_secs = seconds
+        self._set_status(self._current_status_msg())
 
     def _stop_player(self) -> None:
         self._watching = False
@@ -422,6 +461,7 @@ class TuiRadio(App):
                 self._player.kill()
             self._player = None
         self._song_title = ""
+        self._buffer_secs = None
         try:
             os.unlink(self._ipc_path)
         except FileNotFoundError:
@@ -435,12 +475,14 @@ class TuiRadio(App):
     def action_volume_up(self) -> None:
         self._volume = min(100, self._volume + 5)
         self._mpv_cmd("set_property", "volume", self._volume)
-        self._set_status(f"Volume: {self._volume}%")
+        if self._current:
+            self._set_status(self._current_status_msg())
 
     def action_volume_down(self) -> None:
         self._volume = max(0, self._volume - 5)
         self._mpv_cmd("set_property", "volume", self._volume)
-        self._set_status(f"Volume: {self._volume}%")
+        if self._current:
+            self._set_status(self._current_status_msg())
 
     def action_stop(self) -> None:
         self._stop_player()

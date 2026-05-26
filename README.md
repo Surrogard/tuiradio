@@ -14,14 +14,30 @@ A terminal UI internet radio player powered by the [Radio Browser](https://www.r
 ```bash
 git clone <repo>
 cd tuiradio
-./run.sh        # creates .venv, installs dependencies, and launches
+python3 tuiradio.py
 ```
 
-`run.sh` is self-bootstrapping — it creates a virtual environment and installs dependencies on the first run.
+`tuiradio.py` is self-bootstrapping — on first run it creates a `.venv`, installs dependencies, and re-execs itself. Only `python3` and the `venv` module are required.
+
+Alternatively, use the `run` wrapper:
+
+```bash
+./run
+```
 
 ## Usage
 
 On launch, the top 100 most-voted stations are loaded. Use the keyboard to navigate and play.
+
+### Troubleshooting
+
+If you hit a certificate error or the station list fails to load, run:
+
+```bash
+python3 tuiradio.py --doctor
+```
+
+This checks your Python environment, installed packages, TLS/CA configuration, proxy-related environment variables, and connectivity to the Radio Browser API. Failures print inline hints.
 
 ### Keybindings
 
@@ -38,7 +54,7 @@ On launch, the top 100 most-voted stations are loaded. Use the keyboard to navig
 
 ### Search
 
-Press `Ctrl+L` to focus the search bar and press `Enter` to search. Plain text searches by station name. You can also use field prefixes to build more specific queries:
+Type in the search bar — the list filters instantly from already-loaded stations, and a fresh API query follows automatically. Press `Enter` to search immediately and move focus to the list. Plain text searches by station name. You can also use field prefixes to build more specific queries:
 
 | Prefix | Example | Description |
 |--------|---------|-------------|

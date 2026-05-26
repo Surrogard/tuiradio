@@ -22,7 +22,7 @@ Direct execution (after `.venv` exists):
 The entire application lives in a single file: `tuiradio.py`. It is a [Textual](https://textual.textualize.io/) `App` subclass (`TuiRadio`) with no external modules.
 
 **Data flow:**
-1. On mount, `_fetch_top()` or `_fetch_search()` (both `@work(thread=True)` background workers) call the [Radio Browser API](https://de1.api.radio-browser.info/) and hand results back to the main thread via `call_from_thread`.
+1. On mount, `_fetch_top()` or `_fetch_search()` (both `@work(thread=True)` background workers) call the [Radio Browser API](https://de1.api.radio-browser.info/) and hand results back to the main thread via `call_from_thread`. While any API request is in flight, `_api_start()` / `_api_done()` drive a braille spinner next to the search bar.
 2. `_populate()` fills the `DataTable` with station rows; `self._stations` is the authoritative list backing the table — row index == list index.
 3. Selecting a row calls `_play()`, which spawns `mpv` as a subprocess.
 4. `_track_song_title()` (another background worker) opens a persistent Unix socket to mpv, subscribes to `media-title` property changes, and pushes updates back via `call_from_thread(_update_song_title)`.

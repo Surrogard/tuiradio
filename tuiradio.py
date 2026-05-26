@@ -14,9 +14,12 @@ from typing import NamedTuple, Optional
 import httpx
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical
 from textual.widgets import DataTable, Footer, Header, Input, Static
 from textual import on, work
+from textual.timer import Timer
+
+_SPINNER_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 
 RADIO_API = "https://de1.api.radio-browser.info/json"
 _HEADERS = {"User-Agent": "tuiradio/1.0"}
@@ -96,6 +99,18 @@ def _parse_query(query: str) -> _Parsed:
     return _Parsed(api_params, exclude_tags, exclude_fields)
 
 
+def _apply_local_query(stations: list[dict], q: str) -> list[dict]:
+    """Filter an in-memory station list against query q without hitting the API."""
+    if not q:
+        return stations
+    parsed = _parse_query(q)
+    result = _apply_filters(stations, parsed)
+    name = parsed.api_params.get("name", "").lower()
+    if name:
+        result = [s for s in result if name in (s.get("name") or "").lower()]
+    return result
+
+
 def _apply_filters(stations: list[dict], parsed: _Parsed) -> list[dict]:
     if not parsed.exclude_tags and not parsed.exclude_fields:
         return stations
@@ -120,6 +135,12 @@ class TuiRadio(App):
         height: 3;
         padding: 0 1;
         background: $panel;
+    }
+    #search { width: 1fr; }
+    #spinner {
+        width: 2;
+        content-align: center middle;
+        color: $accent;
     }
 
     #stations { height: 1fr; }
@@ -155,6 +176,11 @@ class TuiRadio(App):
         self._buffer_secs: Optional[float] = None
         self._last_station_uuid: str = ""
         self._last_search: str = ""
+        self._debounce_timer: Optional[Timer] = None
+        self._all_stations: list[dict] = []
+        self._api_busy: int = 0
+        self._spinner_frame: int = 0
+        self._spinner_timer: Optional[Timer] = None
         self._load_config()
 
     # ── config persistence ───────────────────────────────────────────────
@@ -185,7 +211,8 @@ class TuiRadio(App):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        with Vertical(id="search-row"):
+        with Horizontal(id="search-row"):
+            yield Static("", id="spinner")
             yield Input(
                 placeholder="Search: name  or  tag:rock country:DE codec:mp3 NOT tag:pop  (Ctrl+L to focus)",
                 id="search",
@@ -229,8 +256,25 @@ class TuiRadio(App):
 
     # ── workers (run in background threads) ─────────────────────────────
 
+    def _api_start(self) -> None:
+        self._api_busy += 1
+        if self._spinner_timer is None:
+            self._spinner_timer = self.set_interval(0.08, self._tick_spinner)
+
+    def _api_done(self) -> None:
+        self._api_busy = max(0, self._api_busy - 1)
+        if self._api_busy == 0 and self._spinner_timer is not None:
+            self._spinner_timer.stop()
+            self._spinner_timer = None
+            self.query_one("#spinner", Static).update("")
+
+    def _tick_spinner(self) -> None:
+        self._spinner_frame = (self._spinner_frame + 1) % len(_SPINNER_FRAMES)
+        self.query_one("#spinner", Static).update(_SPINNER_FRAMES[self._spinner_frame])
+
     @work(exclusive=True, thread=True)
     def _fetch_top(self) -> None:
+        self.call_from_thread(self._api_start)
         self.call_from_thread(self._set_status, "Loading top stations…")
         try:
             with httpx.Client(timeout=10) as c:
@@ -243,12 +287,16 @@ class TuiRadio(App):
                 self.call_from_thread(self._populate, r.json())
         except Exception as exc:
             self.call_from_thread(self._set_status, f"Error loading stations: {exc}")
+        finally:
+            self.call_from_thread(self._api_done)
 
     @work(exclusive=True, thread=True)
     def _fetch_search(self, query: str) -> None:
+        self.call_from_thread(self._api_start)
         self.call_from_thread(self._set_status, f'Searching for "{query}"…')
         parsed = _parse_query(query)
         if not parsed.api_params:
+            self.call_from_thread(self._api_done)
             self.call_from_thread(self._fetch_top)
             return
         try:
@@ -269,10 +317,14 @@ class TuiRadio(App):
                 self.call_from_thread(self._populate, stations)
         except Exception as exc:
             self.call_from_thread(self._set_status, f"Search error: {exc}")
+        finally:
+            self.call_from_thread(self._api_done)
 
     # ── UI helpers ───────────────────────────────────────────────────────
 
-    def _populate(self, data: list[dict]) -> None:
+    def _populate(self, data: list[dict], *, track_full: bool = True) -> None:
+        if track_full:
+            self._all_stations = data
         self._stations = data
         t = self.query_one("#stations", DataTable)
         t.clear()
@@ -292,8 +344,8 @@ class TuiRadio(App):
                 clicks,
             )
         self._set_status(f"{len(data)} stations  •  ↑↓ navigate  •  Enter to play")
-        # Restore cursor to last listened station
-        if self._last_station_uuid:
+        # Restore cursor to last listened station (full fetches only)
+        if track_full and self._last_station_uuid:
             for idx, s in enumerate(data):
                 if s.get("stationuuid") == self._last_station_uuid:
                     t.move_cursor(row=idx)
@@ -498,8 +550,25 @@ class TuiRadio(App):
         self._save_config()
         self.exit()
 
+    @on(Input.Changed, "#search")
+    def on_search_changed(self, event: Input.Changed) -> None:
+        if self._debounce_timer is not None:
+            self._debounce_timer.stop()
+        q = event.value.strip()
+        self._last_search = q
+        # instant local filter for immediate feedback
+        if self._all_stations:
+            self._populate(_apply_local_query(self._all_stations, q), track_full=False)
+        # debounced API call for fresh / broader results
+        if q:
+            self._debounce_timer = self.set_timer(0.4, lambda: self._fetch_search(q))
+        else:
+            self._debounce_timer = self.set_timer(0.4, self._fetch_top)
+
     @on(Input.Submitted, "#search")
     def on_search_submit(self, event: Input.Submitted) -> None:
+        if self._debounce_timer is not None:
+            self._debounce_timer.stop()
         q = event.value.strip()
         self._last_search = q
         if q:
@@ -515,6 +584,146 @@ class TuiRadio(App):
             self._play(self._stations[idx])
 
 
+# ── doctor mode ─────────────────────────────────────────────────────────────
+
+def _doctor() -> None:
+    """Run startup diagnostics and exit.  Invoked with --doctor."""
+    import ssl
+    import sys
+    import shutil
+    import importlib.metadata as meta
+
+    OK   = "\033[32m✔\033[0m"
+    FAIL = "\033[31m✘\033[0m"
+    WARN = "\033[33m!\033[0m"
+    DIM  = "\033[2m"
+    RST  = "\033[0m"
+
+    failed: set[str] = set()
+
+    def check(label: str, fn, *hints: str) -> bool:
+        try:
+            print(f"  {OK}  {label}: {fn()}")
+            return True
+        except Exception as exc:
+            print(f"  {FAIL}  {label}: {exc}")
+            for h in hints:
+                print(f"       {WARN}  {h}")
+            failed.add(label)
+            return False
+
+    print("\ntuiradio doctor\n")
+
+    # ── environment ──────────────────────────────────────────────────────────
+    print("environment:")
+    check("python", lambda: sys.version.split()[0])
+    check("venv",   lambda: sys.prefix)
+    for pkg in ("httpx", "textual", "certifi"):
+        check(pkg, lambda p=pkg: meta.version(p),
+              f"reinstall:  pip install --upgrade {pkg}")
+
+    def _mpv():
+        path = shutil.which("mpv")
+        if not path:
+            raise FileNotFoundError("not found")
+        return path
+    check("mpv", _mpv,
+          "apt:    sudo apt install mpv",
+          "pacman: sudo pacman -S mpv",
+          "brew:   brew install mpv")
+
+    # ── env vars ─────────────────────────────────────────────────────────────
+    print("\nenv vars:")
+    _ENV = [
+        # (name, who-uses-it)
+        ("SSL_CERT_FILE",   "Python ssl — override CA bundle path"),
+        ("SSL_CERT_DIR",    "Python ssl — directory of CA certs"),
+        ("HTTPS_PROXY",     "httpx — HTTPS proxy"),
+        ("HTTP_PROXY",      "httpx — HTTP proxy"),
+        ("ALL_PROXY",       "httpx — fallback proxy for all schemes"),
+        ("NO_PROXY",        "httpx — comma-separated proxy bypass list"),
+        ("HTTPX_LOG_LEVEL", "httpx — trace|debug|info|warning|error"),
+    ]
+    for var, desc in _ENV:
+        val = os.environ.get(var) or os.environ.get(var.lower())
+        if val:
+            print(f"  {OK}  {var}={val!r}  {DIM}# {desc}{RST}")
+        else:
+            print(f"  {DIM}  -  {var:<16}  # {desc}{RST}")
+
+    # ── TLS / CA bundle ──────────────────────────────────────────────────────
+    print("\ntls:")
+
+    def _ca_bundle():
+        import certifi
+        return certifi.where()
+    check("ca bundle",   _ca_bundle,
+          "pip install --upgrade certifi")
+    check("ssl context", lambda: ssl.create_default_context().check_hostname and "ok")
+
+    # ── connectivity ─────────────────────────────────────────────────────────
+    print("\nconnectivity:")
+    host = "de1.api.radio-browser.info"
+
+    def _tcp():
+        s = socket.create_connection((host, 443), timeout=5)
+        s.close()
+        return f"{host}:443 reachable"
+    check("tcp", _tcp,
+          "host unreachable — check network / firewall",
+          f"probe manually:  nc -zv {host} 443")
+
+    def _tls_verify():
+        ctx = ssl.create_default_context()
+        with ctx.wrap_socket(
+            socket.create_connection((host, 443), timeout=5),
+            server_hostname=host,
+        ) as tls:
+            cert = tls.getpeercert()
+            return cert.get("subject", ((('commonName', host),),))[0][0][1]
+
+    tls_ok = check("tls (verified)", _tls_verify)
+
+    if not tls_ok:
+        # probe without verification to distinguish cert vs. network failure
+        def _tls_noverify():
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode    = ssl.CERT_NONE
+            with ctx.wrap_socket(
+                socket.create_connection((host, 443), timeout=5),
+                server_hostname=host,
+            ) as tls:
+                raw = tls.getpeercert(binary_form=True)
+                return f"connected — {len(ssl.DER_cert_to_PEM_cert(raw))} byte cert"
+
+        noverify_ok = check("tls (unverified)", _tls_noverify)
+        print()
+        if noverify_ok:
+            print(f"  {WARN}  host reachable but cert verification failed — likely causes:")
+            print( "          1. corporate / MITM proxy with its own CA")
+            print( "             → export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt")
+            print( "             → or point to your corporate bundle")
+            print( "          2. stale certifi CA bundle")
+            print( "             → pip install --upgrade certifi")
+        else:
+            print(f"  {WARN}  no TLS connection at all — firewall blocking 443?")
+            print( "          → check HTTPS_PROXY / NO_PROXY if behind a proxy")
+        print()
+
+    def _httpx_get():
+        r = httpx.get(f"https://{host}/json/stats", headers=_HEADERS, timeout=8)
+        r.raise_for_status()
+        return f"HTTP {r.status_code}"
+    check("httpx GET", _httpx_get)
+
+    print()
+    sys.exit(0)
+
+
 if __name__ == "__main__":
+    import sys as _sys
+    if "--doctor" in _sys.argv:
+        _doctor()
     TuiRadio().run()
 

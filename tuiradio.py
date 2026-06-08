@@ -360,6 +360,14 @@ class TuiRadio(App):
             bar.update(msg)
             bar.remove_class("playing")
 
+    def _buffer_colors(self) -> tuple[str, str, str]:
+        t = self.theme_variables
+        return (
+            t.get("success", "green"),
+            t.get("warning", "yellow"),
+            t.get("error", "red"),
+        )
+
     def _render_buffer(self) -> str:
         if self._buffer_secs is None:
             return ""
@@ -367,12 +375,13 @@ class TuiRadio(App):
         fill = round(min(secs, 10))
         bar = "█" * fill + "░" * (10 - fill)
         label = f"{secs:.1f}s"
+        ok, warn, err = self._buffer_colors()
         if secs >= 2.0:
-            color = "green"
+            color = ok
         elif secs >= 1.0:
-            color = "yellow"
+            color = warn
         else:
-            color = "red"
+            color = err
         return f"buf [{color}]{bar} {label}[/{color}]"
 
     # ── playback ─────────────────────────────────────────────────────────

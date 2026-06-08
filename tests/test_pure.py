@@ -1,5 +1,4 @@
 """Tests for pure / near-pure functions in tuiradio.py."""
-import types
 import pytest
 
 from tuiradio import _apply_filters, _parse_query
@@ -23,17 +22,21 @@ def _station(**kwargs):
     return {**defaults, **kwargs}
 
 
-def _stub_app(song_title="", buffer_secs=None):
+def _stub_app(song_title="", buffer_secs=None, theme_variables=None):
     """Minimal object that satisfies _render_buffer and _current_status_msg."""
     from tuiradio import TuiRadio
-    # Import the unbound methods directly so we avoid App.__init__ side effects
-    obj = types.SimpleNamespace(
-        _song_title=song_title,
-        _buffer_secs=buffer_secs,
-    )
-    obj._render_buffer = TuiRadio._render_buffer.__get__(obj)
-    obj._current_status_msg = TuiRadio._current_status_msg.__get__(obj)
-    return obj
+
+    class _AppStub:
+        _render_buffer = TuiRadio._render_buffer
+        _buffer_colors = TuiRadio._buffer_colors
+        _current_status_msg = TuiRadio._current_status_msg
+
+        def __init__(self, song_title="", buffer_secs=None, theme_variables=None):
+            self._song_title = song_title
+            self._buffer_secs = buffer_secs
+            self.theme_variables = theme_variables or {}
+
+    return _AppStub(song_title=song_title, buffer_secs=buffer_secs, theme_variables=theme_variables)
 
 
 # ── _parse_query ──────────────────────────────────────────────────────────────
@@ -349,3 +352,33 @@ class TestThemeConfig:
         app._save_config()
         data = json.loads((tmp_path / "config.json").read_text())
         assert data["theme"] == "green"
+
+
+# ── buffer bar colors ─────────────────────────────────────────────────────────
+
+class TestBufferColors:
+    def test_uses_theme_success_for_full_buffer(self):
+        app = _stub_app(buffer_secs=5.0, theme_variables={"success": "#00ff00", "warning": "#ffff00", "error": "#ff0000"})
+        result = app._render_buffer()
+        assert "#00ff00" in result
+
+    def test_uses_theme_warning_for_low_buffer(self):
+        app = _stub_app(buffer_secs=1.5, theme_variables={"success": "#00ff00", "warning": "#ffff00", "error": "#ff0000"})
+        result = app._render_buffer()
+        assert "#ffff00" in result
+
+    def test_uses_theme_error_for_critical_buffer(self):
+        app = _stub_app(buffer_secs=0.5, theme_variables={"success": "#00ff00", "warning": "#ffff00", "error": "#ff0000"})
+        result = app._render_buffer()
+        assert "#ff0000" in result
+
+    def test_falls_back_to_named_colors_when_no_theme_variables(self):
+        app = _stub_app(buffer_secs=5.0, theme_variables={})
+        result = app._render_buffer()
+        assert "green" in result
+
+    def test_empty_when_no_buffer_secs(self):
+        app = _stub_app(buffer_secs=None)
+        result = app._render_buffer()
+        assert result == ""
+

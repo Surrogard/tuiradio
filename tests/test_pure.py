@@ -308,9 +308,9 @@ class TestThemeConfig:
         app._volume = 100
         app._last_station_uuid = ""
         app._last_search = ""
-        app._theme_name = "textual-dark"
+        app._staged_theme = "textual-dark"
         app._load_config()
-        assert app._theme_name == "textual-dark"
+        assert app._staged_theme == "textual-dark"
 
     def test_theme_loaded_from_config(self, tmp_path, monkeypatch):
         import tuiradio, json
@@ -322,9 +322,9 @@ class TestThemeConfig:
         app._volume = 100
         app._last_station_uuid = ""
         app._last_search = ""
-        app._theme_name = "textual-dark"
+        app._staged_theme = "textual-dark"
         app._load_config()
-        assert app._theme_name == "amber"
+        assert app._staged_theme == "amber"
 
     def test_invalid_theme_preserves_prior_value(self, tmp_path, monkeypatch):
         import tuiradio, json
@@ -336,9 +336,9 @@ class TestThemeConfig:
         app._volume = 100
         app._last_station_uuid = ""
         app._last_search = ""
-        app._theme_name = "nord"
+        app._staged_theme = "nord"
         app._load_config()
-        assert app._theme_name == "nord"
+        assert app._staged_theme == "nord"
 
     def test_theme_saved_to_config(self, tmp_path, monkeypatch):
         import tuiradio, json
@@ -348,10 +348,25 @@ class TestThemeConfig:
         app._volume = 80
         app._last_station_uuid = "abc"
         app._last_search = "jazz"
-        app._theme_name = "green"
+        app._staged_theme = "green"
+        app._reactive_theme = "green"
         app._save_config()
         data = json.loads((tmp_path / "config.json").read_text())
         assert data["theme"] == "green"
+
+    def test_alias_theme_saved_as_alias_name(self, tmp_path, monkeypatch):
+        import tuiradio, json
+        monkeypatch.setattr(tuiradio, "CONFIG_PATH", tmp_path / "config.json")
+        from tuiradio import TuiRadio
+        app = TuiRadio.__new__(TuiRadio)
+        app._volume = 100
+        app._last_station_uuid = ""
+        app._last_search = ""
+        app._staged_theme = "textual-dark"
+        app._reactive_theme = "textual-dark"
+        app._save_config()
+        data = json.loads((tmp_path / "config.json").read_text())
+        assert data["theme"] == "default"
 
 
 # ── buffer bar colors ─────────────────────────────────────────────────────────

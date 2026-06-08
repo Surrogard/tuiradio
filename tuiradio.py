@@ -54,6 +54,8 @@ _THEME_GREEN = Theme(
 )
 
 _VALID_THEMES = frozenset({"default", "amber", "green", "light"} | BUILTIN_THEMES.keys())
+_THEME_ALIASES = {"default": "textual-dark", "light": "textual-light"}
+_THEME_ALIASES_INV = {v: k for k, v in _THEME_ALIASES.items()}
 
 
 # ── search query parser ──────────────────────────────────────────────────────
@@ -188,7 +190,7 @@ class TuiRadio(App):
         self._buffer_secs: Optional[float] = None
         self._last_station_uuid: str = ""
         self._last_search: str = ""
-        self._theme_name: str = "textual-dark"
+        self._staged_theme: str = "textual-dark"
         self._load_config()
 
     # ── config persistence ───────────────────────────────────────────────
@@ -201,19 +203,20 @@ class TuiRadio(App):
             self._last_search = data.get("last_search", "")
             theme = data.get("theme", "textual-dark")
             if theme in _VALID_THEMES:
-                self._theme_name = theme
+                self._staged_theme = theme
         except Exception:
             pass
 
     def _save_config(self) -> None:
         try:
             CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+            live_theme = getattr(self, "_reactive_theme", self._staged_theme)
             CONFIG_PATH.write_text(
                 json.dumps({
                     "volume": self._volume,
                     "last_station_uuid": self._last_station_uuid,
                     "last_search": self._last_search,
-                    "theme": self._theme_name,
+                    "theme": _THEME_ALIASES_INV.get(live_theme, live_theme),
                 }, indent=2)
             )
         except Exception:
@@ -235,8 +238,7 @@ class TuiRadio(App):
     def on_mount(self) -> None:
         self.register_theme(_THEME_AMBER)
         self.register_theme(_THEME_GREEN)
-        _alias = {"default": "textual-dark", "light": "textual-light"}
-        self.theme = _alias.get(self._theme_name, self._theme_name)
+        self.theme = _THEME_ALIASES.get(self._staged_theme, self._staged_theme)
         self._rebuild_columns()
         search_input = self.query_one("#search", Input)
         if self._last_search:

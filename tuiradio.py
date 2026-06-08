@@ -9,18 +9,54 @@ import pathlib
 import re
 import socket
 import subprocess
+import time
 from typing import NamedTuple, Optional
 
 import httpx
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
+from textual.theme import BUILTIN_THEMES, Theme
 from textual.widgets import DataTable, Footer, Header, Input, Static
 from textual import on, work
 
 RADIO_API = "https://de1.api.radio-browser.info/json"
 _HEADERS = {"User-Agent": "tuiradio/1.0"}
 CONFIG_PATH = pathlib.Path.home() / ".config" / "tuiradio" / "config.json"
+
+_THEME_AMBER = Theme(
+    name="amber",
+    primary="#ffb000",
+    secondary="#cc7700",
+    accent="#ffd040",
+    foreground="#ffb000",
+    background="#0d0a06",
+    surface="#120e08",
+    panel="#1a1208",
+    success="#c8a850",
+    warning="#ff8800",
+    error="#cc3300",
+    dark=True,
+)
+
+_THEME_GREEN = Theme(
+    name="green",
+    primary="#33ff33",
+    secondary="#00cc00",
+    accent="#66ff66",
+    foreground="#33ff33",
+    background="#000e00",
+    surface="#001400",
+    panel="#001a00",
+    success="#aaffaa",
+    warning="#ccff00",
+    error="#ff4444",
+    dark=True,
+)
+
+_VALID_THEMES = frozenset({"default", "amber", "green", "light"} | BUILTIN_THEMES.keys())
+_THEME_ALIASES = {"default": "textual-dark", "light": "textual-light"}
+_THEME_ALIASES_INV = {v: k for k, v in _THEME_ALIASES.items()}
 
 
 # ── search query parser ──────────────────────────────────────────────────────
@@ -155,6 +191,7 @@ class TuiRadio(App):
         self._buffer_secs: Optional[float] = None
         self._last_station_uuid: str = ""
         self._last_search: str = ""
+        self._staged_theme: str = "textual-dark"
         self._load_config()
 
     # ── config persistence ───────────────────────────────────────────────
@@ -165,17 +202,22 @@ class TuiRadio(App):
             self._volume = int(data.get("volume", 100))
             self._last_station_uuid = data.get("last_station_uuid", "")
             self._last_search = data.get("last_search", "")
+            theme = data.get("theme", "textual-dark")
+            if theme in _VALID_THEMES:
+                self._staged_theme = theme
         except Exception:
             pass
 
     def _save_config(self) -> None:
         try:
             CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+            live_theme = getattr(self, "_reactive_theme", self._staged_theme)
             CONFIG_PATH.write_text(
                 json.dumps({
                     "volume": self._volume,
                     "last_station_uuid": self._last_station_uuid,
                     "last_search": self._last_search,
+                    "theme": _THEME_ALIASES_INV.get(live_theme, live_theme),
                 }, indent=2)
             )
         except Exception:
@@ -187,7 +229,7 @@ class TuiRadio(App):
         yield Header(show_clock=True)
         with Vertical(id="search-row"):
             yield Input(
-                placeholder="Search: name  or  tag:rock country:DE codec:mp3 NOT tag:pop  (Ctrl+L to focus)",
+                placeholder="Search: name  tag:rock country:DE codec:mp3 NOT tag:pop  (Ctrl+L)",
                 id="search",
             )
         yield DataTable(id="stations", cursor_type="row")
@@ -195,6 +237,10 @@ class TuiRadio(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        """Apply saved theme and load initial station list."""
+        self.register_theme(_THEME_AMBER)
+        self.register_theme(_THEME_GREEN)
+        self.theme = _THEME_ALIASES.get(self._staged_theme, self._staged_theme)
         self._rebuild_columns()
         search_input = self.query_one("#search", Input)
         if self._last_search:
@@ -204,6 +250,7 @@ class TuiRadio(App):
             self._fetch_top()
 
     def on_resize(self) -> None:
+        """Rebuild columns to fit new terminal width."""
         self._rebuild_columns()
         if self._stations:
             self._populate(self._stations)
@@ -300,30 +347,43 @@ class TuiRadio(App):
                     break
 
     def _set_status(self, msg: str) -> None:
-        bar = self.query_one("#status", Static)
+        status_bar = self.query_one("#status", Static)
         if self._current:
             buf = self._render_buffer()
             buf_part = f"   │   {buf}" if buf else ""
-            bar.update(f"▶  {self._current['name']}   │   vol: {self._volume}%   │   {msg}{buf_part}")
-            bar.add_class("playing")
+            status_bar.update(
+                f"▶  {self._current['name']}   │   vol: {self._volume}%   │   {msg}{buf_part}"
+            )
+            status_bar.add_class("playing")
         else:
-            bar.update(msg)
-            bar.remove_class("playing")
+            status_bar.update(msg)
+            status_bar.remove_class("playing")
+
+    def _buffer_colors(self) -> tuple[str, str, str]:
+        # theme_variables is populated after the first event-loop tick post on_mount;
+        # fallbacks ensure correct output during any transient empty-dict window.
+        t = self.theme_variables
+        return (
+            t.get("success", "green"),
+            t.get("warning", "yellow"),
+            t.get("error", "red"),
+        )
 
     def _render_buffer(self) -> str:
         if self._buffer_secs is None:
             return ""
         secs = self._buffer_secs
         fill = round(min(secs, 10))
-        bar = "█" * fill + "░" * (10 - fill)
+        status_bar = "█" * fill + "░" * (10 - fill)
         label = f"{secs:.1f}s"
+        ok, warn, err = self._buffer_colors()
         if secs >= 2.0:
-            color = "green"
+            color = ok
         elif secs >= 1.0:
-            color = "yellow"
+            color = warn
         else:
-            color = "red"
-        return f"buf [{color}]{bar} {label}[/{color}]"
+            color = err
+        return f"buf [{color}]{status_bar} {label}[/{color}]"
 
     # ── playback ─────────────────────────────────────────────────────────
 
@@ -382,7 +442,6 @@ class TuiRadio(App):
     @work(exclusive=False, thread=True)
     def _track_song_title(self) -> None:
         """Keep a persistent IPC connection and stream media-title changes."""
-        import time
         # Wait up to 2 s for mpv to create the socket.
         for _ in range(20):
             if os.path.exists(self._ipc_path):
@@ -400,8 +459,9 @@ class TuiRadio(App):
                     + b"\n"
                 )
                 s.sendall(
-                    json.dumps({"command": ["observe_property", 2, "demuxer-cache-duration"]}).encode()
-                    + b"\n"
+                    json.dumps(
+                        {"command": ["observe_property", 2, "demuxer-cache-duration"]}
+                    ).encode() + b"\n"
                 )
                 buf = b""
                 while self._watching and self._player is my_player:
@@ -470,36 +530,43 @@ class TuiRadio(App):
     # ── actions & events ─────────────────────────────────────────────────
 
     def action_focus_search(self) -> None:
+        """Focus the search input."""
         self.query_one("#search", Input).focus()
 
     def action_volume_up(self) -> None:
+        """Increase volume by 5%."""
         self._volume = min(100, self._volume + 5)
         self._mpv_cmd("set_property", "volume", self._volume)
         if self._current:
             self._set_status(self._current_status_msg())
 
     def action_volume_down(self) -> None:
+        """Decrease volume by 5%."""
         self._volume = max(0, self._volume - 5)
         self._mpv_cmd("set_property", "volume", self._volume)
         if self._current:
             self._set_status(self._current_status_msg())
 
     def action_stop(self) -> None:
+        """Stop playback."""
         self._stop_player()
         self._current = None
         self._set_status("Stopped")
 
     def action_reload(self) -> None:
+        """Clear search and reload top stations."""
         self.query_one("#search", Input).clear()
         self._fetch_top()
 
-    def action_quit(self) -> None:
+    async def action_quit(self) -> None:
+        """Stop playback, save config, and exit."""
         self._stop_player()
         self._save_config()
         self.exit()
 
     @on(Input.Submitted, "#search")
     def on_search_submit(self, event: Input.Submitted) -> None:
+        """Trigger a search or reload top stations when query is cleared."""
         q = event.value.strip()
         self._last_search = q
         if q:
@@ -510,6 +577,7 @@ class TuiRadio(App):
 
     @on(DataTable.RowSelected, "#stations")
     def on_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Play the station at the selected row."""
         idx = event.cursor_row
         if 0 <= idx < len(self._stations):
             self._play(self._stations[idx])
@@ -517,4 +585,3 @@ class TuiRadio(App):
 
 if __name__ == "__main__":
     TuiRadio().run()
-

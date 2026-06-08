@@ -1,4 +1,6 @@
 """Verify that mpv is invoked with -- before the URL to prevent option injection."""
+# pylint: disable=missing-function-docstring,protected-access,redefined-outer-name
+# pylint: disable=unused-import,unused-argument,unsupported-membership-test,unsubscriptable-object
 import subprocess
 from unittest.mock import MagicMock, patch
 

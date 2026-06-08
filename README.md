@@ -69,6 +69,30 @@ Settings are saved automatically to `~/.config/tuiradio/config.json`:
 - Volume level
 - Last played station
 - Last search query (restored on next launch)
+- Theme
+
+### Theming
+
+Set the `theme` key in `~/.config/tuiradio/config.json` to change the color scheme:
+
+```json
+{
+  "theme": "amber"
+}
+```
+
+Built-in themes:
+
+| Theme | Description |
+|-------|-------------|
+| `default` | Default dark theme (alias for `textual-dark`) |
+| `light` | Light theme (alias for `textual-light`) |
+| `amber` | Amber phosphor terminal |
+| `green` | Green phosphor terminal |
+
+All [Textual built-in themes](https://textual.textualize.io/guide/design/#themes) are also supported, e.g. `dracula`, `nord`, `gruvbox`, `catppuccin-mocha`, `tokyo-night`, and more.
+
+An unrecognised theme name falls back silently to `default`.
 
 ## Dependencies
 

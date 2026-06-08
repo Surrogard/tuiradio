@@ -1,5 +1,7 @@
 """Tests for pure / near-pure functions in tuiradio.py."""
-import types
+# pylint: disable=missing-function-docstring,missing-class-docstring,protected-access
+# pylint: disable=import-outside-toplevel,too-few-public-methods,multiple-imports
+# pylint: disable=line-too-long,trailing-newlines,unused-import,use-implicit-booleaness-not-comparison
 import pytest
 
 from tuiradio import _apply_filters, _parse_query
@@ -23,17 +25,21 @@ def _station(**kwargs):
     return {**defaults, **kwargs}
 
 
-def _stub_app(song_title="", buffer_secs=None):
+def _stub_app(song_title="", buffer_secs=None, theme_variables=None):
     """Minimal object that satisfies _render_buffer and _current_status_msg."""
     from tuiradio import TuiRadio
-    # Import the unbound methods directly so we avoid App.__init__ side effects
-    obj = types.SimpleNamespace(
-        _song_title=song_title,
-        _buffer_secs=buffer_secs,
-    )
-    obj._render_buffer = TuiRadio._render_buffer.__get__(obj)
-    obj._current_status_msg = TuiRadio._current_status_msg.__get__(obj)
-    return obj
+
+    class _AppStub:
+        _render_buffer = TuiRadio._render_buffer
+        _buffer_colors = TuiRadio._buffer_colors
+        _current_status_msg = TuiRadio._current_status_msg
+
+        def __init__(self, song_title="", buffer_secs=None, theme_variables=None):
+            self._song_title = song_title
+            self._buffer_secs = buffer_secs
+            self.theme_variables = theme_variables or {}
+
+    return _AppStub(song_title=song_title, buffer_secs=buffer_secs, theme_variables=theme_variables)
 
 
 # ── _parse_query ──────────────────────────────────────────────────────────────
@@ -292,3 +298,105 @@ class TestCurrentStatusMsg:
         # and None both become "" — but a whitespace-only string would pass through
         app = _stub_app(song_title="  ")
         assert app._current_status_msg().startswith("♪")
+
+
+# ── theme config ─────────────────────────────────────────────────────────────
+
+class TestThemeConfig:
+    def test_default_theme_when_no_config(self, tmp_path, monkeypatch):
+        import tuiradio
+        monkeypatch.setattr(tuiradio, "CONFIG_PATH", tmp_path / "config.json")
+        from tuiradio import TuiRadio
+        app = TuiRadio.__new__(TuiRadio)
+        app._volume = 100
+        app._last_station_uuid = ""
+        app._last_search = ""
+        app._staged_theme = "textual-dark"
+        app._load_config()
+        assert app._staged_theme == "textual-dark"
+
+    def test_theme_loaded_from_config(self, tmp_path, monkeypatch):
+        import tuiradio, json
+        cfg = tmp_path / "config.json"
+        cfg.write_text(json.dumps({"volume": 80, "last_station_uuid": "", "last_search": "", "theme": "amber"}))
+        monkeypatch.setattr(tuiradio, "CONFIG_PATH", cfg)
+        from tuiradio import TuiRadio
+        app = TuiRadio.__new__(TuiRadio)
+        app._volume = 100
+        app._last_station_uuid = ""
+        app._last_search = ""
+        app._staged_theme = "textual-dark"
+        app._load_config()
+        assert app._staged_theme == "amber"
+
+    def test_invalid_theme_preserves_prior_value(self, tmp_path, monkeypatch):
+        import tuiradio, json
+        cfg = tmp_path / "config.json"
+        cfg.write_text(json.dumps({"theme": "nonexistent-theme"}))
+        monkeypatch.setattr(tuiradio, "CONFIG_PATH", cfg)
+        from tuiradio import TuiRadio
+        app = TuiRadio.__new__(TuiRadio)
+        app._volume = 100
+        app._last_station_uuid = ""
+        app._last_search = ""
+        app._staged_theme = "nord"
+        app._load_config()
+        assert app._staged_theme == "nord"
+
+    def test_theme_saved_to_config(self, tmp_path, monkeypatch):
+        import tuiradio, json
+        monkeypatch.setattr(tuiradio, "CONFIG_PATH", tmp_path / "config.json")
+        from tuiradio import TuiRadio
+        app = TuiRadio.__new__(TuiRadio)
+        app._volume = 80
+        app._last_station_uuid = "abc"
+        app._last_search = "jazz"
+        app._staged_theme = "green"
+        app._reactive_theme = "green"
+        app._save_config()
+        data = json.loads((tmp_path / "config.json").read_text())
+        assert data["theme"] == "green"
+
+    def test_alias_theme_saved_as_alias_name(self, tmp_path, monkeypatch):
+        import tuiradio, json
+        monkeypatch.setattr(tuiradio, "CONFIG_PATH", tmp_path / "config.json")
+        from tuiradio import TuiRadio
+        app = TuiRadio.__new__(TuiRadio)
+        app._volume = 100
+        app._last_station_uuid = ""
+        app._last_search = ""
+        app._staged_theme = "textual-dark"
+        app._reactive_theme = "textual-dark"
+        app._save_config()
+        data = json.loads((tmp_path / "config.json").read_text())
+        assert data["theme"] == "default"
+
+
+# ── buffer bar colors ─────────────────────────────────────────────────────────
+
+class TestBufferColors:
+    def test_uses_theme_success_for_full_buffer(self):
+        app = _stub_app(buffer_secs=5.0, theme_variables={"success": "#00ff00", "warning": "#ffff00", "error": "#ff0000"})
+        result = app._render_buffer()
+        assert "#00ff00" in result
+
+    def test_uses_theme_warning_for_low_buffer(self):
+        app = _stub_app(buffer_secs=1.5, theme_variables={"success": "#00ff00", "warning": "#ffff00", "error": "#ff0000"})
+        result = app._render_buffer()
+        assert "#ffff00" in result
+
+    def test_uses_theme_error_for_critical_buffer(self):
+        app = _stub_app(buffer_secs=0.5, theme_variables={"success": "#00ff00", "warning": "#ffff00", "error": "#ff0000"})
+        result = app._render_buffer()
+        assert "#ff0000" in result
+
+    def test_falls_back_to_named_colors_when_no_theme_variables(self):
+        app = _stub_app(buffer_secs=5.0, theme_variables={})
+        result = app._render_buffer()
+        assert "green" in result
+
+    def test_empty_when_no_buffer_secs(self):
+        app = _stub_app(buffer_secs=None)
+        result = app._render_buffer()
+        assert result == ""
+

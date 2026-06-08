@@ -323,7 +323,7 @@ class TestThemeConfig:
         app._load_config()
         assert app._theme_name == "amber"
 
-    def test_invalid_theme_falls_back_to_default(self, tmp_path, monkeypatch):
+    def test_invalid_theme_preserves_prior_value(self, tmp_path, monkeypatch):
         import tuiradio, json
         cfg = tmp_path / "config.json"
         cfg.write_text(json.dumps({"theme": "nonexistent-theme"}))
@@ -333,9 +333,9 @@ class TestThemeConfig:
         app._volume = 100
         app._last_station_uuid = ""
         app._last_search = ""
-        app._theme_name = "textual-dark"
+        app._theme_name = "nord"
         app._load_config()
-        assert app._theme_name == "textual-dark"
+        assert app._theme_name == "nord"
 
     def test_theme_saved_to_config(self, tmp_path, monkeypatch):
         import tuiradio, json

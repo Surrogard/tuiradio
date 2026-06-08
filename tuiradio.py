@@ -241,6 +241,10 @@ class TuiRadio(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        self.register_theme(_THEME_AMBER)
+        self.register_theme(_THEME_GREEN)
+        _alias = {"default": "textual-dark", "light": "textual-light"}
+        self.theme = _alias.get(self._theme_name, self._theme_name)
         self._rebuild_columns()
         search_input = self.query_one("#search", Input)
         if self._last_search:

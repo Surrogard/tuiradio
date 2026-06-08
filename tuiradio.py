@@ -15,12 +15,53 @@ import httpx
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
+from textual.theme import Theme
 from textual.widgets import DataTable, Footer, Header, Input, Static
 from textual import on, work
 
 RADIO_API = "https://de1.api.radio-browser.info/json"
 _HEADERS = {"User-Agent": "tuiradio/1.0"}
 CONFIG_PATH = pathlib.Path.home() / ".config" / "tuiradio" / "config.json"
+
+_THEME_AMBER = Theme(
+    name="amber",
+    primary="#ffb000",
+    secondary="#cc7700",
+    accent="#ffd040",
+    foreground="#ffb000",
+    background="#0d0a06",
+    surface="#120e08",
+    panel="#1a1208",
+    success="#c8a850",
+    warning="#ff8800",
+    error="#cc3300",
+    dark=True,
+)
+
+_THEME_GREEN = Theme(
+    name="green",
+    primary="#33ff33",
+    secondary="#00cc00",
+    accent="#66ff66",
+    foreground="#33ff33",
+    background="#000e00",
+    surface="#001400",
+    panel="#001a00",
+    success="#00ff00",
+    warning="#ccff00",
+    error="#ff4444",
+    dark=True,
+)
+
+_VALID_THEMES = {
+    "default", "amber", "green", "light",
+    "textual-dark", "textual-light", "nord", "gruvbox",
+    "catppuccin-mocha", "dracula", "tokyo-night", "monokai",
+    "flexoki", "catppuccin-latte", "catppuccin-frappe",
+    "catppuccin-macchiato", "solarized-light", "solarized-dark",
+    "rose-pine", "rose-pine-moon", "rose-pine-dawn",
+    "atom-one-dark", "atom-one-light", "ansi-dark", "ansi-light",
+}
 
 
 # ── search query parser ──────────────────────────────────────────────────────

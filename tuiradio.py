@@ -196,6 +196,7 @@ class TuiRadio(App):
         self._buffer_secs: Optional[float] = None
         self._last_station_uuid: str = ""
         self._last_search: str = ""
+        self._theme_name: str = "textual-dark"
         self._load_config()
 
     # ── config persistence ───────────────────────────────────────────────
@@ -206,6 +207,9 @@ class TuiRadio(App):
             self._volume = int(data.get("volume", 100))
             self._last_station_uuid = data.get("last_station_uuid", "")
             self._last_search = data.get("last_search", "")
+            theme = data.get("theme", "textual-dark")
+            if theme in _VALID_THEMES:
+                self._theme_name = theme
         except Exception:
             pass
 
@@ -217,6 +221,7 @@ class TuiRadio(App):
                     "volume": self._volume,
                     "last_station_uuid": self._last_station_uuid,
                     "last_search": self._last_search,
+                    "theme": self._theme_name,
                 }, indent=2)
             )
         except Exception:

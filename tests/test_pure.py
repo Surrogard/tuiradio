@@ -292,3 +292,60 @@ class TestCurrentStatusMsg:
         # and None both become "" — but a whitespace-only string would pass through
         app = _stub_app(song_title="  ")
         assert app._current_status_msg().startswith("♪")
+
+
+# ── theme config ─────────────────────────────────────────────────────────────
+
+class TestThemeConfig:
+    def test_default_theme_when_no_config(self, tmp_path, monkeypatch):
+        import tuiradio
+        monkeypatch.setattr(tuiradio, "CONFIG_PATH", tmp_path / "config.json")
+        from tuiradio import TuiRadio
+        app = TuiRadio.__new__(TuiRadio)
+        app._volume = 100
+        app._last_station_uuid = ""
+        app._last_search = ""
+        app._theme_name = "textual-dark"
+        app._load_config()
+        assert app._theme_name == "textual-dark"
+
+    def test_theme_loaded_from_config(self, tmp_path, monkeypatch):
+        import tuiradio, json
+        cfg = tmp_path / "config.json"
+        cfg.write_text(json.dumps({"volume": 80, "last_station_uuid": "", "last_search": "", "theme": "amber"}))
+        monkeypatch.setattr(tuiradio, "CONFIG_PATH", cfg)
+        from tuiradio import TuiRadio
+        app = TuiRadio.__new__(TuiRadio)
+        app._volume = 100
+        app._last_station_uuid = ""
+        app._last_search = ""
+        app._theme_name = "textual-dark"
+        app._load_config()
+        assert app._theme_name == "amber"
+
+    def test_invalid_theme_falls_back_to_default(self, tmp_path, monkeypatch):
+        import tuiradio, json
+        cfg = tmp_path / "config.json"
+        cfg.write_text(json.dumps({"theme": "nonexistent-theme"}))
+        monkeypatch.setattr(tuiradio, "CONFIG_PATH", cfg)
+        from tuiradio import TuiRadio
+        app = TuiRadio.__new__(TuiRadio)
+        app._volume = 100
+        app._last_station_uuid = ""
+        app._last_search = ""
+        app._theme_name = "textual-dark"
+        app._load_config()
+        assert app._theme_name == "textual-dark"
+
+    def test_theme_saved_to_config(self, tmp_path, monkeypatch):
+        import tuiradio, json
+        monkeypatch.setattr(tuiradio, "CONFIG_PATH", tmp_path / "config.json")
+        from tuiradio import TuiRadio
+        app = TuiRadio.__new__(TuiRadio)
+        app._volume = 80
+        app._last_station_uuid = "abc"
+        app._last_search = "jazz"
+        app._theme_name = "green"
+        app._save_config()
+        data = json.loads((tmp_path / "config.json").read_text())
+        assert data["theme"] == "green"

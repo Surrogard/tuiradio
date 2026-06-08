@@ -47,13 +47,13 @@ _THEME_GREEN = Theme(
     background="#000e00",
     surface="#001400",
     panel="#001a00",
-    success="#00ff00",
+    success="#aaffaa",
     warning="#ccff00",
     error="#ff4444",
     dark=True,
 )
 
-_VALID_THEMES = {
+_VALID_THEMES = frozenset({
     "default", "amber", "green", "light",
     "textual-dark", "textual-light", "nord", "gruvbox",
     "catppuccin-mocha", "dracula", "tokyo-night", "monokai",
@@ -61,7 +61,7 @@ _VALID_THEMES = {
     "catppuccin-macchiato", "solarized-light", "solarized-dark",
     "rose-pine", "rose-pine-moon", "rose-pine-dawn",
     "atom-one-dark", "atom-one-light", "ansi-dark", "ansi-light",
-}
+})
 
 
 # ── search query parser ──────────────────────────────────────────────────────

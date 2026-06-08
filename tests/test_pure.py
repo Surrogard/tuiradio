@@ -1,4 +1,7 @@
 """Tests for pure / near-pure functions in tuiradio.py."""
+# pylint: disable=missing-function-docstring,missing-class-docstring,protected-access
+# pylint: disable=import-outside-toplevel,too-few-public-methods,multiple-imports
+# pylint: disable=line-too-long,trailing-newlines,unused-import,use-implicit-booleaness-not-comparison
 import pytest
 
 from tuiradio import _apply_filters, _parse_query

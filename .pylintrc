@@ -1,0 +1,11 @@
+[MESSAGES CONTROL]
+disable =
+    broad-exception-caught,
+    consider-using-with,
+
+[DESIGN]
+max-branches=20
+max-attributes=15
+
+[FORMAT]
+max-line-length=100

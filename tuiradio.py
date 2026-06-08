@@ -15,7 +15,7 @@ import httpx
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
-from textual.theme import Theme
+from textual.theme import BUILTIN_THEMES, Theme
 from textual.widgets import DataTable, Footer, Header, Input, Static
 from textual import on, work
 
@@ -53,15 +53,7 @@ _THEME_GREEN = Theme(
     dark=True,
 )
 
-_VALID_THEMES = frozenset({
-    "default", "amber", "green", "light",
-    "textual-dark", "textual-light", "nord", "gruvbox",
-    "catppuccin-mocha", "dracula", "tokyo-night", "monokai",
-    "flexoki", "catppuccin-latte", "catppuccin-frappe",
-    "catppuccin-macchiato", "solarized-light", "solarized-dark",
-    "rose-pine", "rose-pine-moon", "rose-pine-dawn",
-    "atom-one-dark", "atom-one-light", "ansi-dark", "ansi-light",
-})
+_VALID_THEMES = frozenset({"default", "amber", "green", "light"} | BUILTIN_THEMES.keys())
 
 
 # ── search query parser ──────────────────────────────────────────────────────
@@ -361,6 +353,8 @@ class TuiRadio(App):
             bar.remove_class("playing")
 
     def _buffer_colors(self) -> tuple[str, str, str]:
+        # theme_variables is populated after the first event-loop tick post on_mount;
+        # fallbacks ensure correct output during any transient empty-dict window.
         t = self.theme_variables
         return (
             t.get("success", "green"),

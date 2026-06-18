@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Running the Application
 
 ```bash
-./run.sh          # auto-creates .venv and installs deps on first run, then launches
+./run             # auto-creates .venv and installs deps on first run, then launches
 ```
 
 Direct execution (after `.venv` exists):
